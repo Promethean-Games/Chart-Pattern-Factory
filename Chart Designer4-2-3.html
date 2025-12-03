@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chart Pattern Factory v0.4.2 — SVG Candles</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg-dark: #020617;
+      --bg-panel-dark: #020617;
+      --bg-elevated-dark: #020617;
+      --bg-light: #f9fafb;
+      --bg-panel-light: #ffffff;
+      --bg-elevated-light: #f3f4f6;
+      --accent: #4ba3ff;
+      --accent-soft: rgba(75,163,255,0.15);
+      --radius: 10px;
+      --transition: 0.2s ease;
+      --font-stack: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: var(--font-stack);
+      background: var(--bg-dark);
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      transition: background var(--transition), color var(--transition);
+    }
+
+    body.light-theme {
+      background: var(--bg-light);
+      color: #111827;
+    }
+
+    .app-shell {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.1rem;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    header h1 span.sub {
+      font-size: 0.75rem;
+      opacity: 0.7;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .chip-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .chip {
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      opacity: 0.9;
+    }
+
+    .theme-toggle {
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background var(--transition), border-color var(--transition),
+        transform 0.05s ease;
+    }
+
+    .theme-toggle:hover { background: rgba(148, 163, 184, 0.15); }
+    .theme-toggle:active { transform: scale(0.97); }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .panel {
+      border-radius: var(--radius);
+      padding: 12px;
+      background: radial-gradient(circle at top left, #111827 0, #020617 60%);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      box-shadow: 0 10px 40px rgba(15, 23, 42, 0.6);
+      transition: background var(--transition), border-color var(--transition),
+        box-shadow var(--transition);
+    }
+
+    body.light-theme .panel {
+      background: linear-gradient(135deg, var(--bg-panel-light), #eef2ff);
+      border-color: rgba(148, 163, 184, 0.5);
+      box-shadow: 0 10px 35px rgba(15, 23, 42, 0.18);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 8px;
+      gap: 8px;
+    }
+
+    .panel-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .panel-title span.dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 12px rgba(75, 163, 255, 0.9);
+    }
+
+    .panel-subtitle { font-size: 0.75rem; opacity: 0.7; }
+
+    .chart-shell {
+      border-radius: calc(var(--radius) - 2px);
+      padding: 10px;
+      background: radial-gradient(circle at center, #020617 0, #020617 55%);
+      border: 1px solid rgba(75, 163, 255, 0.35);
+      position: relative;
+    }
+
+    body.light-theme .chart-shell {
+      background: radial-gradient(circle at center, #eef2ff 0, #e5e7eb 55%);
+      border-color: rgba(55, 65, 81, 0.4);
+    }
+
+    .chart-shell-footer {
+      margin-top: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.7rem;
+      opacity: 0.75;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #bfdbfe;
+    }
+
+    body.light-theme .badge { color: #1d4ed8; }
+
+    .control-group {
+      margin-bottom: 10px;
+      padding: 8px;
+      border-radius: calc(var(--radius) - 4px);
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    body.light-theme .control-group {
+      background: rgba(255, 255, 255, 0.8);
+      border-color: rgba(148, 163, 184, 0.6);
+    }
+
+    .control-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .control-label { font-size: 0.78rem; font-weight: 500; }
+    .control-value { font-size: 0.72rem; opacity: 0.75; }
+
+    select, input[type="range"] { width: 100%; }
+
+    select {
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: rgba(15, 23, 42, 0.9);
+      color: inherit;
+      font-size: 0.8rem;
+    }
+
+    body.light-theme select { background: #ffffff; }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.6);
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 1px solid #0b1120;
+      box-shadow: 0 0 0 4px rgba(75, 163, 255, 0.4);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 1px solid #0b1120;
+      box-shadow: 0 0 0 4px rgba(75, 163, 255, 0.4);
+    }
+
+    .button-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: rgba(15, 23, 42, 0.9);
+      color: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background var(--transition), border-color var(--transition),
+        transform 0.05s ease, box-shadow 0.1s ease;
+    }
+
+    body.light-theme .btn { background: #ffffff; }
+
+    .btn-primary {
+      border-color: var(--accent);
+      background: radial-gradient(circle at top left, #1d4ed8, #0b1120);
+      color: #e5e7eb;
+      box-shadow: 0 0 12px rgba(37, 99, 235, 0.7);
+    }
+
+    body.light-theme .btn-primary {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #f9fafb;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.5);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+      box-shadow: none;
+    }
+
+    .legend-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 0.72rem;
+      margin-top: 6px;
+      opacity: 0.85;
+    }
+
+    .legend-pill { display: inline-flex; align-items: center; gap: 4px; }
+
+    .legend-swatch {
+      width: 12px;
+      height: 6px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+
+    .legend-swatch.bearish { background: #ef4444; }
+    .legend-swatch.neutral { background: #9ca3af; }
+
+    footer {
+      margin-top: auto;
+      padding: 8px 16px 12px;
+      font-size: 0.7rem;
+      opacity: 0.7;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header>
+      <h1>
+        Chart Pattern Factory
+        <span class="sub">Phase 1 · SVG Candlestick & Chart Patterns</span>
+      </h1>
+      <div class="chip-row">
+        <div class="chip">Output: SVG (exportable)</div>
+        <div class="chip">Synthetic OHLC · No live data</div>
+        <button id="theme-toggle" class="theme-toggle" type="button">
+          <span>🌑</span><span>Dark mode</span>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <!-- CHART PANEL -->
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="dot"></span>
+            Pattern canvas
+          </div>
+          <div class="panel-subtitle" id="pattern-label">—</div>
+        </div>
+        <div class="chart-shell">
+          <svg
+            id="chart-svg"
+            viewBox="0 0 800 400"
+            preserveAspectRatio="xMidYMid meet"
+          ></svg>
+          <div class="chart-shell-footer">
+            <span>Synthetic price action · for training materials & diagrams</span>
+            <span class="badge" id="trend-badge">Trend: —</span>
+          </div>
+        </div>
+        <div class="legend-row">
+          <div class="legend-pill">
+            <span class="legend-swatch"></span> Bullish
+          </div>
+          <div class="legend-pill">
+            <span class="legend-swatch bearish"></span> Bearish
+          </div>
+          <div class="legend-pill">
+            <span class="legend-swatch neutral"></span> Neutral / Doji
+          </div>
+        </div>
+        <div class="button-row">
+          <button id="download-svg" class="btn btn-primary" type="button">
+            ⬇️ Export SVG
+          </button>
+        </div>
+      </section>
+
+      <!-- CONTROLS PANEL -->
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="dot"></span>
+            Pattern controls
+          </div>
+        </div>
+
+        <!-- PATTERN TYPE -->
+        <div class="control-group">
+          <div class="control-label-row">
+            <span class="control-label">Pattern type</span>
+          </div>
+          <select id="pattern-select">
+            <optgroup label="Candlestick Patterns">
+              <option value="doji">Doji</option>
+              <option value="dragonflyDoji">Dragonfly Doji</option>
+              <option value="gravestoneDoji">Gravestone Doji</option>
+              <option value="harami">Harami</option>
+              <option value="hammer">Hammer / Hanging Man</option>
+              <option value="invertedHammer">Inverted Hammer / Shooting Star</option>
+              <option value="engulfing">Engulfing (bullish/bearish)</option>
+              <option value="darkCloudPiercing">Dark Cloud / Piercing Line</option>
+            </optgroup>
+            <optgroup label="Horizontal Congestion (Multi-Bar)">
+              <option value="doubleTop">Double Top</option>
+              <option value="doubleBottom">Double Bottom</option>
+              <option value="tripleTop">Triple Top</option>
+              <option value="tripleBottom">Triple Bottom</option>
+              <option value="rectangle">Rectangle</option>
+            </optgroup>
+            <optgroup label="Triangles & Wedges">
+              <option value="symmetricalTriangle">Symmetrical Triangle</option>
+              <option value="ascendingTriangle">Ascending Triangle</option>
+              <option value="descendingTriangle">Descending Triangle</option>
+              <option value="risingWedge">Rising Wedge</option>
+              <option value="fallingWedge">Falling Wedge</option>
+            </optgroup>
+            <optgroup label="Other Multi-Bar Patterns">
+              <option value="headAndShoulders">Head &amp; Shoulders (Top)</option>
+              <option value="cupAndHandle">Cup &amp; Handle</option>
+            </optgroup>
+            <optgroup label="Short-Term Patterns">
+              <option value="flag">Flag</option>
+              <option value="pennant">Pennant</option>
+              <option value="gap">Gap Up Pattern</option>
+              <option value="pipeBottom">Pipe Bottom</option>
+              <option value="narrowRange">Narrow Range</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <!-- TREND -->
+        <div class="control-group">
+          <div class="control-label-row">
+            <span class="control-label">Context trend</span>
+          </div>
+          <select id="trend-select">
+            <option value="down">Downtrend into pattern</option>
+            <option value="up">Uptrend into pattern</option>
+            <option value="sideways">Sideways / Range</option>
+          </select>
+        </div>
+
+        <!-- PRE-CANDLES -->
+        <div class="control-group">
+          <div class="control-label-row">
+            <span class="control-label">Trend candles before pattern</span>
+            <span class="control-value" id="pre-candles-value">4</span>
+          </div>
+          <input
+            id="pre-candles"
+            type="range"
+            min="0"
+            max="10"
+            step="1"
+            value="4"
+          />
+        </div>
+
+        <!-- POST-CANDLES -->
+        <div class="control-group">
+          <div class="control-label-row">
+            <span class="control-label">Trend candles after pattern</span>
+            <span class="control-value" id="post-candles-value">2</span>
+          </div>
+          <input
+            id="post-candles"
+            type="range"
+            min="0"
+            max="10"
+            step="1"
+            value="2"
+          />
+        </div>
+
+        <!-- WICK MULTIPLIER -->
+        <div class="control-group">
+          <div class="control-label-row">
+            <span class="control-label">Wick emphasis</span>
+            <span class="control-value" id="wick-multiplier-value">1.5×</span>
+          </div>
+          <input
+            id="wick-multiplier"
+            type="range"
+            min="0.5"
+            max="3"
+            step="0.1"
+            value="1.5"
+          />
+        </div>
+
+        <!-- BODY SIZE -->
+        <div class="control-group">
+          <div class="control-label-row">
+            <span class="control-label">Body size (relative)</span>
+            <span class="control-value" id="body-size-value">0.25</span>
+          </div>
+          <input
+            id="body-size"
+            type="range"
+            min="0.05"
+            max="0.6"
+            step="0.05"
+            value="0.25"
+          />
+        </div>
+
+        <!-- EXAGGERATION / VARIABILITY -->
+        <div class="control-group">
+          <div class="control-label-row">
+            <span class="control-label">Pattern exaggeration</span>
+            <span class="control-value" id="variability-value">1.40×</span>
+          </div>
+          <input
+            id="variability"
+            type="range"
+            min="0"
+            max="1.5"
+            step="0.1"
+            value="0.4"
+          />
+        </div>
+
+        <!-- CLEAN EXPORT TOGGLE -->
+        <div class="control-group">
+          <div class="control-label-row">
+            <span class="control-label">Clean export (candles only)</span>
+          </div>
+          <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px;">
+            <input id="minimal-toggle" type="checkbox" />
+            Hide grid, axes &amp; background for mockups
+          </label>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      v0.4.2 — Candle bodies and wicks now always share the same color (no off-color outlines).
+    </footer>
+  </div>
+
+  <script>
+    // ---------- UTILITIES ----------
+    function $(id) { return document.getElementById(id); }
+
+    function createSvgElement(tag, attrs) {
+      const el = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        tag
+      );
+      for (const [k, v] of Object.entries(attrs || {})) {
+        el.setAttribute(k, v);
+      }
+      return el;
+    }
+
+    // Exaggerate a set of candles around a baseline, strongest near center
+    function exaggerateCandlesSet(candles, exaggeration) {
+      if (!candles || !candles.length || exaggeration <= 1.01) return candles;
+
+      // Baseline: average of midpoints
+      let sumMid = 0;
+      candles.forEach(c => {
+        sumMid += (c.high + c.low) / 2;
+      });
+      const baseline = sumMid / candles.length;
+      const n = candles.length;
+      const result = [];
+
+      for (let i = 0; i < n; i++) {
+        const c = candles[i];
+        // Position 0..1 across pattern
+        const t = n > 1 ? i / (n - 1) : 0.5;
+        // Peak factor toward center, clipped so edges still move a bit
+        const centerFactor = Math.max(0.3, 1 - Math.abs(t - 0.5) * 1.2);
+        const localFactor = 1 + (exaggeration - 1) * centerFactor;
+
+        const o = baseline + (c.open - baseline) * localFactor;
+        const cl = baseline + (c.close - baseline) * localFactor;
+        const h = baseline + (c.high - baseline) * localFactor;
+        const l = baseline + (c.low - baseline) * localFactor;
+
+        result.push({ open: o, close: cl, high: h, low: l });
+      }
+
+      return result;
+    }
+
+    // ---------- PATTERN METADATA ----------
+    const patternDefinitions = {
+      // Candlestick patterns
+      doji: {
+        label: "Doji",
+        description: "Open and close nearly equal with upper and lower shadows.",
+        category: "Candlestick Patterns",
+        type: "candlestick",
+        mode: "doji",
+        postTrend: "opposite",
+      },
+      dragonflyDoji: {
+        label: "Dragonfly Doji",
+        description: "Open/close near the high with a long lower shadow.",
+        category: "Candlestick Patterns",
+        type: "candlestick",
+        mode: "dragonfly",
+        postTrend: "opposite",
+      },
+      gravestoneDoji: {
+        label: "Gravestone Doji",
+        description: "Open/close near the low with a long upper shadow.",
+        category: "Candlestick Patterns",
+        type: "candlestick",
+        mode: "gravestone",
+        postTrend: "opposite",
+      },
+      harami: {
+        label: "Harami",
+        description: "Small real body contained within prior larger candle.",
+        category: "Candlestick Patterns",
+        type: "candlestick",
+        postTrend: "opposite",
+      },
+      hammer: {
+        label: "Hammer / Hanging Man",
+        description: "Small body near high with long lower shadow.",
+        category: "Candlestick Patterns",
+        type: "candlestick",
+        mode: "hammer",
+        postTrend: "opposite",
+      },
+      invertedHammer: {
+        label: "Inverted Hammer / Shooting Star",
+        description: "Small body near low with long upper shadow.",
+        category: "Candlestick Patterns",
+        type: "candlestick",
+        mode: "invertedHammer",
+        postTrend: "opposite",
+      },
+      engulfing: {
+        label: "Engulfing",
+        description: "Second candle’s body engulfs the first.",
+        category: "Candlestick Patterns",
+        type: "candlestick",
+        postTrend: "opposite",
+      },
+      darkCloudPiercing: {
+        label: "Dark Cloud / Piercing Line",
+        description: "Strong move into prior candle’s body after a gap.",
+        category: "Candlestick Patterns",
+        type: "candlestick",
+        postTrend: "opposite",
+      },
+
+      // Horizontal congestion
+      doubleTop: {
+        label: "Double Top",
+        description: "Two peaks at similar resistance level after an advance.",
+        category: "Horizontal Congestion",
+        type: "structure",
+        postTrend: "opposite",
+      },
+      doubleBottom: {
+        label: "Double Bottom",
+        description: "Two troughs at similar support level after a decline.",
+        category: "Horizontal Congestion",
+        type: "structure",
+        postTrend: "opposite",
+      },
+      tripleTop: {
+        label: "Triple Top",
+        description: "Three peaks at similar resistance level.",
+        category: "Horizontal Congestion",
+        type: "structure",
+        postTrend: "opposite",
+      },
+      tripleBottom: {
+        label: "Triple Bottom",
+        description: "Three troughs at similar support level.",
+        category: "Horizontal Congestion",
+        type: "structure",
+        postTrend: "opposite",
+      },
+      rectangle: {
+        label: "Rectangle",
+        description: "Sideways range bounded by support and resistance.",
+        category: "Horizontal Congestion",
+        type: "structure",
+        postTrend: "same",
+      },
+
+      // Triangles & wedges
+      symmetricalTriangle: {
+        label: "Symmetrical Triangle",
+        description: "Converging trend lines with lower highs and higher lows.",
+        category: "Triangles & Wedges",
+        type: "structure",
+        postTrend: "same",
+      },
+      ascendingTriangle: {
+        label: "Ascending Triangle",
+        description: "Flat resistance with rising lows, often breaks higher.",
+        category: "Triangles & Wedges",
+        type: "structure",
+        postTrend: "same",
+      },
+      descendingTriangle: {
+        label: "Descending Triangle",
+        description: "Flat support with falling highs, often breaks lower.",
+        category: "Triangles & Wedges",
+        type: "structure",
+        postTrend: "same",
+      },
+      risingWedge: {
+        label: "Rising Wedge",
+        description: "Rising, converging trend lines, often breaks lower.",
+        category: "Triangles & Wedges",
+        type: "structure",
+        postTrend: "down",
+      },
+      fallingWedge: {
+        label: "Falling Wedge",
+        description: "Falling, converging trend lines, often breaks higher.",
+        category: "Triangles & Wedges",
+        type: "structure",
+        postTrend: "up",
+      },
+
+      // Other multi-bar
+      headAndShoulders: {
+        label: "Head & Shoulders (Top)",
+        description: "Left shoulder, higher head, right shoulder, neckline break.",
+        category: "Other Multi-Bar",
+        type: "structure",
+        postTrend: "opposite",
+      },
+      cupAndHandle: {
+        label: "Cup & Handle",
+        description: "Rounded base with small consolidation and breakout.",
+        category: "Other Multi-Bar",
+        type: "structure",
+        postTrend: "up",
+      },
+
+      // Short-term
+      flag: {
+        label: "Flag",
+        description: "Sharp move (pole) then small channel, then breakout.",
+        category: "Short-Term",
+        type: "structure",
+        postTrend: "same",
+      },
+      pennant: {
+        label: "Pennant",
+        description: "Sharp move then small converging triangle.",
+        category: "Short-Term",
+        type: "structure",
+        postTrend: "same",
+      },
+      gap: {
+        label: "Gap Up Pattern",
+        description: "Price gaps away from prior range.",
+        category: "Short-Term",
+        type: "structure",
+        postTrend: "same",
+      },
+      pipeBottom: {
+        label: "Pipe Bottom",
+        description: "Two sharp lows at similar level followed by rebound.",
+        category: "Short-Term",
+        type: "structure",
+        postTrend: "up",
+      },
+      narrowRange: {
+        label: "Narrow Range",
+        description: "Cluster of tight candles with small ranges.",
+        category: "Short-Term",
+        type: "structure",
+        postTrend: "same",
+      },
+    };
+
+    // ---------- CORE GENERATORS ----------
+    function generateTrendCandles(count, direction, basePrice, exaggeration) {
+      const candles = [];
+      let price = basePrice;
+      const stepBase = 1.2 * (0.7 + 0.3 * exaggeration); // modestly responsive
+
+      for (let i = 0; i < count; i++) {
+        const open = price;
+        if (direction === "up") {
+          price += stepBase;
+        } else if (direction === "down") {
+          price -= stepBase;
+        } else {
+          price += (i % 2 === 0 ? 0.7 : -0.7) * (0.7 + 0.3 * exaggeration);
+        }
+        const close = price;
+        const high = Math.max(open, close) + 0.6 * exaggeration;
+        const low = Math.min(open, close) - 0.6 * exaggeration;
+
+        candles.push({ open, high, low, close });
+      }
+
+      return { candles, lastPrice: price };
+    }
+
+    function generateBasePatternCandle(opts) {
+      const {
+        basePrice,
+        direction,
+        wickMultiplier,
+        bodySizeFactor,
+        mode,
+        exaggeration,
+      } = opts;
+
+      const coreSpan = 4 * wickMultiplier * exaggeration;
+      const bodySpan = coreSpan * bodySizeFactor;
+      const longWickSpan = coreSpan * wickMultiplier;
+
+      let open, close, high, low;
+
+      switch (mode) {
+        case "doji": {
+          const mid =
+            basePrice +
+            (direction === "up" ? 0.8 * exaggeration :
+             direction === "down" ? -0.8 * exaggeration : 0);
+          open = mid - bodySpan * 0.05;
+          close = mid + bodySpan * 0.05;
+          high = mid + coreSpan * 0.5;
+          low = mid - coreSpan * 0.5;
+          break;
+        }
+        case "dragonfly": {
+          const top =
+            basePrice +
+            (direction === "down" ? -0.8 * exaggeration :
+             direction === "up" ? 0.8 * exaggeration : 0);
+          open = top - bodySpan * 0.05;
+          close = top + bodySpan * 0.05;
+          high = top + bodySpan * 0.15;
+          low = top - longWickSpan;
+          break;
+        }
+        case "gravestone": {
+          const bottom =
+            basePrice +
+            (direction === "up" ? 0.8 * exaggeration :
+             direction === "down" ? -0.8 * exaggeration : 0);
+          open = bottom - bodySpan * 0.05;
+          close = bottom + bodySpan * 0.05;
+          low = bottom - bodySpan * 0.15;
+          high = bottom + longWickSpan;
+          break;
+        }
+        case "hammer": {
+          const mid =
+            basePrice +
+            (direction === "down" ? -0.8 * exaggeration :
+             direction === "up" ? 0.8 * exaggeration : 0);
+          const bodyTop = mid + bodySpan * 0.4;
+          const bodyBottom = mid - bodySpan * 0.6;
+          open = bodyBottom;
+          close = bodyTop;
+          high = bodyTop + coreSpan * 0.2;
+          low = bodyBottom - longWickSpan;
+          break;
+        }
+        case "invertedHammer": {
+          const mid =
+            basePrice +
+            (direction === "down" ? -0.8 * exaggeration :
+             direction === "up" ? 0.8 * exaggeration : 0);
+          const bodyTop = mid + bodySpan * 0.6;
+          const bodyBottom = mid - bodySpan * 0.4;
+          open = bodyTop;
+          close = bodyBottom;
+          low = bodyBottom - coreSpan * 0.2;
+          high = bodyTop + longWickSpan;
+          break;
+        }
+        default: {
+          const mid = basePrice;
+          open = mid - 0.5 * exaggeration;
+          close = mid + 0.5 * exaggeration;
+          high = mid + 1.5 * exaggeration;
+          low = mid - 1.5 * exaggeration;
+        }
+      }
+
+      return { open, high, low, close };
+    }
+
+    function pathToCandles(prices, exaggeration) {
+      const candles = [];
+      if (!prices || prices.length < 2) return candles;
+
+      let prevClose = prices[0];
+      for (let i = 1; i < prices.length; i++) {
+        const target = prices[i];
+        const open = prevClose;
+        const close = target;
+        const up = Math.max(open, close);
+        const down = Math.min(open, close);
+        const span = Math.max(0.8, Math.abs(close - open) * 0.6) * exaggeration;
+        const high = up + span * 0.6;
+        const low = down - span * 0.6;
+        candles.push({ open, high, low, close });
+        prevClose = close;
+      }
+      return candles;
+    }
+
+    function generateCandlestickPattern({
+      patternKey,
+      basePrice,
+      trendDirection,
+      wickMultiplier,
+      bodySizeFactor,
+      exaggeration,
+    }) {
+      const def = patternDefinitions[patternKey] || patternDefinitions["doji"];
+      const candles = [];
+      let patternIndex = 0;
+
+      if (def.mode) {
+        const core = generateBasePatternCandle({
+          basePrice,
+          direction: trendDirection,
+          wickMultiplier,
+          bodySizeFactor,
+          mode: def.mode,
+          exaggeration,
+        });
+        candles.push(core);
+        patternIndex = 0;
+      } else if (patternKey === "harami") {
+        const A = 2.0 * exaggeration;
+        const bigDown = {
+          open: basePrice + A,
+          close: basePrice - A,
+          high: basePrice + A * 1.4,
+          low: basePrice - A * 1.3,
+        };
+        const smallUp = {
+          open: basePrice - A * 0.6,
+          close: basePrice - A * 0.2,
+          high: basePrice - A * 0.05,
+          low: basePrice - A * 0.8,
+        };
+        patternIndex = 1;
+        candles.push(bigDown, smallUp);
+      } else if (patternKey === "engulfing") {
+        const A = 2.0 * exaggeration;
+        const smallDown = {
+          open: basePrice + A * 0.4,
+          close: basePrice - A * 0.4,
+          high: basePrice + A * 0.8,
+          low: basePrice - A * 0.8,
+        };
+        const bigUp = {
+          open: basePrice - A * 1.1,
+          close: basePrice + A * 1.6,
+          high: basePrice + A * 1.9,
+          low: basePrice - A * 1.2,
+        };
+        patternIndex = 1;
+        candles.push(smallDown, bigUp);
+      } else if (patternKey === "darkCloudPiercing") {
+        const A = 2.3 * exaggeration;
+        const strongUp = {
+          open: basePrice - A,
+          close: basePrice + A * 1.4,
+          high: basePrice + A * 1.8,
+          low: basePrice - A * 1.3,
+        };
+        const darkCloud = {
+          open: basePrice + A * 1.7,
+          close: basePrice + A * 0.4,
+          high: basePrice + A * 1.9,
+          low: basePrice - A * 0.2,
+        };
+        patternIndex = 1;
+        candles.push(strongUp, darkCloud);
+      } else {
+        const core = generateBasePatternCandle({
+          basePrice,
+          direction: trendDirection,
+          wickMultiplier,
+          bodySizeFactor,
+          mode: "doji",
+          exaggeration,
+        });
+        patternIndex = 0;
+        candles.push(core);
+      }
+
+      return { candles, patternIndex };
+    }
+
+    function generateStructurePattern({ patternKey, basePrice, exaggeration }) {
+      let prices;
+
+      switch (patternKey) {
+        // Horizontal congestion
+        case "doubleTop": {
+          const A = 4 * exaggeration;
+          prices = [
+            basePrice,
+            basePrice + A,
+            basePrice + A * 0.3,
+            basePrice + A * 0.98,
+            basePrice + A * 0.1,
+          ];
+          break;
+        }
+        case "doubleBottom": {
+          const A = 4 * exaggeration;
+          prices = [
+            basePrice,
+            basePrice - A,
+            basePrice - A * 0.3,
+            basePrice - A * 0.98,
+            basePrice + A * 0.1,
+          ];
+          break;
+        }
+        case "tripleTop": {
+          const A = 4.2 * exaggeration;
+          prices = [
+            basePrice,
+            basePrice + A,
+            basePrice + A * 0.25,
+            basePrice + A * 0.98,
+            basePrice + A * 0.22,
+            basePrice + A * 0.92,
+            basePrice + A * 0.1,
+          ];
+          break;
+        }
+        case "tripleBottom": {
+          const A = 4.2 * exaggeration;
+          prices = [
+            basePrice,
+            basePrice - A,
+            basePrice - A * 0.25,
+            basePrice - A * 0.98,
+            basePrice - A * 0.22,
+            basePrice - A * 0.92,
+            basePrice + A * 0.14,
+          ];
+          break;
+        }
+        case "rectangle": {
+          const R = basePrice + 3 * exaggeration;
+          const S = basePrice - 3 * exaggeration;
+          prices = [basePrice, R, S, R, S, R * 1.02];
+          break;
+        }
+
+        // Triangles & wedges
+        case "symmetricalTriangle": {
+          const A = 4 * exaggeration;
+          prices = [
+            basePrice - 2 * exaggeration,
+            basePrice + 2 * exaggeration,
+            basePrice - 1.6 * exaggeration,
+            basePrice + 1.6 * exaggeration,
+            basePrice - 1.1 * exaggeration,
+            basePrice + 1.1 * exaggeration,
+            basePrice + A,
+          ];
+          break;
+        }
+        case "ascendingTriangle": {
+          const R = basePrice + 4 * exaggeration;
+          prices = [
+            basePrice + 1 * exaggeration,
+            R,
+            basePrice + 2 * exaggeration,
+            R,
+            basePrice + 3 * exaggeration,
+            R,
+            R + 2 * exaggeration,
+          ];
+          break;
+        }
+        case "descendingTriangle": {
+          const S = basePrice - 4 * exaggeration;
+          prices = [
+            basePrice - 1 * exaggeration,
+            basePrice + 3 * exaggeration,
+            basePrice,
+            basePrice + 2 * exaggeration,
+            basePrice - 0.5 * exaggeration,
+            basePrice + 1 * exaggeration,
+            S - 2 * exaggeration,
+          ];
+          break;
+        }
+        case "risingWedge": {
+          const A = 4 * exaggeration;
+          prices = [
+            basePrice,
+            basePrice + A * 0.75,
+            basePrice + A * 0.6,
+            basePrice + A,
+            basePrice + A * 0.8,
+            basePrice + A * 1.05,
+            basePrice + A * 0.15,
+          ];
+          break;
+        }
+        case "fallingWedge": {
+          const A = 4 * exaggeration;
+          prices = [
+            basePrice,
+            basePrice - A * 0.75,
+            basePrice - A * 0.6,
+            basePrice - A,
+            basePrice - A * 0.8,
+            basePrice - A * 1.05,
+            basePrice + A * 0.3,
+          ];
+          break;
+        }
+
+        // Other multi-bar
+        case "headAndShoulders": {
+          const A = 4 * exaggeration;
+          prices = [
+            basePrice + A * 0.25,
+            basePrice + A * 0.75,   // left shoulder
+            basePrice + A * 0.3,    // trough
+            basePrice + A * 1.25,   // head
+            basePrice + A * 0.35,   // trough
+            basePrice + A * 0.8,    // right shoulder
+            basePrice - A * 0.1,    // neckline break
+          ];
+          break;
+        }
+        case "cupAndHandle": {
+          const A = 4 * exaggeration;
+          prices = [
+            basePrice + A,          // left rim
+            basePrice + A * 0.5,
+            basePrice,
+            basePrice,
+            basePrice + A * 0.4,
+            basePrice + A * 0.9,    // right rim
+            basePrice + A * 0.7,    // handle drift
+            basePrice + A * 0.8,
+            basePrice + A * 1.6,    // breakout
+          ];
+          break;
+        }
+
+        // Short-term
+        case "flag": {
+          const A = 6 * exaggeration;
+          prices = [
+            basePrice,
+            basePrice + A,            // pole
+            basePrice + A * 0.86,
+            basePrice + A * 0.9,
+            basePrice + A * 0.82,
+            basePrice + A * 1.33,     // breakout
+          ];
+          break;
+        }
+        case "pennant": {
+          const A = 6 * exaggeration;
+          prices = [
+            basePrice,
+            basePrice + A,
+            basePrice + A * 0.9,
+            basePrice + A * 0.94,
+            basePrice + A * 0.88,
+            basePrice + A * 1.25,
+          ];
+          break;
+        }
+        case "gap": {
+          const A = 2.5 * exaggeration;
+          const gap = 4 * exaggeration;
+          const c1 = {
+            open: basePrice,
+            close: basePrice + A,
+            high: basePrice + A * 1.4,
+            low: basePrice - A * 0.8,
+          };
+          const c2 = {
+            open: basePrice + A + gap,
+            close: basePrice + A + gap + A * 0.8,
+            high: basePrice + A + gap + A * 1.1,
+            low: basePrice + A + gap + A * 0.4,
+          };
+          const c3 = {
+            open: c2.close,
+            close: c2.close + A * 0.8,
+            high: c2.close + A,
+            low: c2.close - A * 0.5,
+          };
+          const candlesGap = exaggerateCandlesSet([c1, c2, c3], exaggeration);
+          return { candles: candlesGap, patternIndex: 1 };
+        }
+        case "pipeBottom": {
+          const A = 5 * exaggeration;
+          prices = [
+            basePrice + A * 0.2,
+            basePrice - A,
+            basePrice - A * 0.1,
+            basePrice - A * 1.05,
+            basePrice + A * 0.2,
+            basePrice + A * 0.8,
+          ];
+          break;
+        }
+        case "narrowRange": {
+          const mid = basePrice;
+          const c = [];
+          for (let i = 0; i < 5; i++) {
+            const open = mid + (i - 2) * 0.2 * exaggeration;
+            const close = open + (i % 2 === 0 ? 0.3 : -0.3) * exaggeration;
+            const high = Math.max(open, close) + 0.4 * exaggeration;
+            const low = Math.min(open, close) - 0.4 * exaggeration;
+            c.push({ open, high, low, close });
+          }
+          const exaggeratedNR = exaggerateCandlesSet(c, exaggeration);
+          return { candles: exaggeratedNR, patternIndex: 2 };
+        }
+        default: {
+          const A = 3 * exaggeration;
+          prices = [
+            basePrice,
+            basePrice + A,
+            basePrice + A * 0.3,
+            basePrice + A * 1.1,
+            basePrice + A * 0.6,
+          ];
+        }
+      }
+
+      let candles = pathToCandles(prices, exaggeration);
+      candles = exaggerateCandlesSet(candles, exaggeration);
+      const patternIndex = Math.floor(candles.length / 2);
+      return { candles, patternIndex };
+    }
+
+    function computePostDirection(patternKey, trendDirection) {
+      const def = patternDefinitions[patternKey];
+      const mode = def && def.postTrend ? def.postTrend : "same";
+
+      switch (mode) {
+        case "same":
+          return trendDirection;
+        case "opposite":
+          if (trendDirection === "up") return "down";
+          if (trendDirection === "down") return "up";
+          return "sideways";
+        case "up":
+          return "up";
+        case "down":
+          return "down";
+        default:
+          return trendDirection;
+      }
+    }
+
+    function generatePatternSeries({
+      patternKey,
+      trendDirection,
+      preCandles,
+      postCandles,
+      wickMultiplier,
+      bodySizeFactor,
+      exaggeration,
+    }) {
+      const basePrice = 100;
+      const trend = generateTrendCandles(
+        preCandles,
+        trendDirection,
+        basePrice,
+        exaggeration
+      );
+
+      let patternCandles = [];
+      let patternIndexWithin = 0;
+      const def = patternDefinitions[patternKey] || patternDefinitions["doji"];
+
+      if (def.type === "candlestick") {
+        const res = generateCandlestickPattern({
+          patternKey,
+          basePrice: trend.lastPrice,
+          trendDirection,
+          wickMultiplier,
+          bodySizeFactor,
+          exaggeration,
+        });
+        patternCandles = res.candles;
+        patternIndexWithin = res.patternIndex || 0;
+      } else {
+        const res = generateStructurePattern({
+          patternKey,
+          basePrice: trend.lastPrice,
+          exaggeration,
+        });
+        patternCandles = res.candles;
+        patternIndexWithin = res.patternIndex || 0;
+      }
+
+      const postDirection = computePostDirection(patternKey, trendDirection);
+      const lastClose =
+        patternCandles.length > 0
+          ? patternCandles[patternCandles.length - 1].close
+          : trend.lastPrice;
+
+      const post = generateTrendCandles(
+        postCandles,
+        postDirection,
+        lastClose,
+        exaggeration * 0.9
+      );
+
+      const candles = [...trend.candles, ...patternCandles, ...post.candles];
+      const patternIndex = trend.candles.length + patternIndexWithin;
+
+      return { candles, patternIndex };
+    }
+
+    // ---------- RENDERING ----------
+    function renderSeries(candles, patternIndex, minimalMode) {
+      const svg = document.getElementById("chart-svg");
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+      const width = 800;
+      const height = 400;
+      const margin = minimalMode
+        ? { top: 70, right: 90, bottom: 70, left: 90 }
+        : { top: 40, right: 60, bottom: 50, left: 60 };
+
+      const innerWidth = width - margin.left - margin.right;
+      const innerHeight = height - margin.top - margin.bottom;
+
+      svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+      if (!candles || candles.length === 0) return;
+
+      let minLow = Infinity;
+      let maxHigh = -Infinity;
+
+      for (const c of candles) {
+        if (c.low < minLow) minLow = c.low;
+        if (c.high > maxHigh) maxHigh = c.high;
+      }
+
+      if (!(maxHigh > minLow)) {
+        maxHigh += 1;
+        minLow -= 1;
+      }
+
+      const priceSpan = maxHigh - minLow;
+
+      function yFor(price) {
+        return margin.top + ((maxHigh - price) / priceSpan) * innerHeight;
+      }
+
+      function xFor(index) {
+        const totalSlots = candles.length + 3; // extra padding
+        const step = innerWidth / totalSlots;
+        return margin.left + step * (index + 1.5);
+      }
+
+      const isLight = document.body.classList.contains("light-theme");
+      const bgColor = isLight ? "#e5e7eb" : "#020617";
+      const panelColor = isLight ? "#ffffff" : "#020617";
+      const axisColor = isLight ? "#4b5563" : "#9ca3af";
+      const gridColor = isLight
+        ? "rgba(148,163,184,0.35)"
+        : "rgba(55,65,81,0.6)";
+      const bullishColor = isLight ? "#16a34a" : "#22c55e";
+      const bearishColor = isLight ? "#dc2626" : "#ef4444";
+      const neutralColor = isLight ? "#6b7280" : "#9ca3af";
+
+      if (!minimalMode) {
+        // background
+        svg.appendChild(
+          createSvgElement("rect", {
+            x: 0,
+            y: 0,
+            width,
+            height,
+            fill: bgColor,
+          })
+        );
+
+        // plot area
+        svg.appendChild(
+          createSvgElement("rect", {
+            x: margin.left,
+            y: margin.top,
+            width: innerWidth,
+            height: innerHeight,
+            fill: panelColor,
+            stroke: gridColor,
+            "stroke-width": 1,
+            rx: 8,
+            ry: 8,
+          })
+        );
+
+        // grid & y-axis labels
+        const gridLines = 4;
+        for (let i = 0; i <= gridLines; i++) {
+          const t = i / gridLines;
+          const y = margin.top + innerHeight * t;
+          const price = maxHigh - priceSpan * t;
+
+          svg.appendChild(
+            createSvgElement("line", {
+              x1: margin.left,
+              x2: margin.left + innerWidth,
+              y1: y,
+              y2: y,
+              stroke: gridColor,
+              "stroke-width": i === 0 || i === gridLines ? 1.1 : 0.6,
+              "stroke-dasharray":
+                i === 0 || i === gridLines ? "none" : "3 4",
+            })
+          );
+
+          const label = createSvgElement("text", {
+            x: margin.left - 8,
+            y: y + 4,
+            "text-anchor": "end",
+            "font-size": 10,
+            fill: axisColor,
+          });
+          label.textContent = price.toFixed(1);
+          svg.appendChild(label);
+        }
+
+        // x-axis baseline
+        svg.appendChild(
+          createSvgElement("line", {
+            x1: margin.left,
+            x2: margin.left + innerWidth,
+            y1: margin.top + innerHeight,
+            y2: margin.top + innerHeight,
+            stroke: axisColor,
+            "stroke-width": 1,
+          })
+        );
+      }
+
+      // draw candles
+      const totalSlots = candles.length + 3;
+      const step = innerWidth / totalSlots;
+      const bodyWidth = step * 0.4;
+
+      candles.forEach((c, i) => {
+        const x = xFor(i);
+        const yOpen = yFor(c.open);
+        const yClose = yFor(c.close);
+        const yHigh = yFor(c.high);
+        const yLow = yFor(c.low);
+
+        const isBull = c.close > c.open + 0.01;
+        const isBear = c.open > c.close + 0.01;
+        const color = isBull ? bullishColor : isBear ? bearishColor : neutralColor;
+
+        // wick
+        svg.appendChild(
+          createSvgElement("line", {
+            x1: x,
+            x2: x,
+            y1: yHigh,
+            y2: yLow,
+            stroke: color,
+            "stroke-width": 2,
+            "stroke-linecap": "round",
+          })
+        );
+
+        // body
+        const bodyTop = Math.min(yOpen, yClose);
+        const bodyHeight = Math.max(2, Math.abs(yClose - yOpen));
+
+        const rectAttrs = {
+          x: x - bodyWidth / 2,
+          y: bodyTop,
+          width: bodyWidth,
+          height: bodyHeight,
+          fill: color,
+          "fill-opacity": 0.9,
+          stroke: color,          // <— body stroke matches wick/body color
+          "stroke-width": 0.5,
+          rx: 2,
+          ry: 2,
+        };
+
+        svg.appendChild(createSvgElement("rect", rectAttrs));
+      });
+
+      // No extra shapes/markers in any mode (clean candles only).
+    }
+
+    // ---------- STATE & WIRING ----------
+    const state = {
+      patternKey: "doji",
+      trendDirection: "down",
+      preCandles: 4,
+      postCandles: 2,
+      wickMultiplier: 1.5,
+      bodySizeFactor: 0.25,
+      variability: 0.4, // 0..1.5 → exaggeration factor = 1 + variability
+      minimalMode: false,
+    };
+
+    function updateLabels() {
+      const def = patternDefinitions[state.patternKey];
+      if (def) {
+        document.getElementById("pattern-label").textContent =
+          `${def.label} · ${def.description}`;
+      } else {
+        document.getElementById("pattern-label").textContent = "—";
+      }
+
+      const trendLabel =
+        state.trendDirection === "up"
+          ? "Uptrend"
+          : state.trendDirection === "down"
+          ? "Downtrend"
+          : "Sideways";
+
+      document.getElementById("trend-badge").textContent =
+        `Trend: ${trendLabel}`;
+    }
+
+    function redraw() {
+      const exaggeration = 1 + state.variability;
+      const { candles, patternIndex } = generatePatternSeries({
+        patternKey: state.patternKey,
+        trendDirection: state.trendDirection,
+        preCandles: state.preCandles,
+        postCandles: state.postCandles,
+        wickMultiplier: state.wickMultiplier,
+        bodySizeFactor: state.bodySizeFactor,
+        exaggeration,
+      });
+      updateLabels();
+      renderSeries(candles, patternIndex, state.minimalMode);
+    }
+
+    function downloadCurrentSvg() {
+      const svg = document.getElementById("chart-svg");
+      const serializer = new XMLSerializer();
+      let source = serializer.serializeToString(svg);
+
+      if (!source.match(/^<svg[^>]+xmlns="/)) {
+        source = source.replace(
+          "<svg",
+          '<svg xmlns="http://www.w3.org/2000/svg"'
+        );
+      }
+
+      source =
+        '<?xml version="1.0" standalone="no"?>\r\n' +
+        source;
+
+      const blob = new Blob([source], {
+        type: "image/svg+xml;charset=utf-8",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `pattern-${state.patternKey}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function initControls() {
+      document.getElementById("pattern-select").value = state.patternKey;
+      document.getElementById("trend-select").value = state.trendDirection;
+      document.getElementById("pre-candles").value = state.preCandles;
+      document.getElementById("pre-candles-value").textContent =
+        String(state.preCandles);
+      document.getElementById("post-candles").value = state.postCandles;
+      document.getElementById("post-candles-value").textContent =
+        String(state.postCandles);
+      document.getElementById("wick-multiplier").value = state.wickMultiplier;
+      document.getElementById("wick-multiplier-value").textContent =
+        state.wickMultiplier.toFixed(1) + "×";
+      document.getElementById("body-size").value = state.bodySizeFactor;
+      document.getElementById("body-size-value").textContent =
+        state.bodySizeFactor.toFixed(2);
+
+      document.getElementById("variability").value = state.variability;
+      document.getElementById("variability-value").textContent =
+        (1 + state.variability).toFixed(2) + "×";
+
+      document.getElementById("minimal-toggle").checked = state.minimalMode;
+
+      document.getElementById("pattern-select").addEventListener("change", (e) => {
+        state.patternKey = e.target.value;
+        redraw();
+      });
+
+      document.getElementById("trend-select").addEventListener("change", (e) => {
+        state.trendDirection = e.target.value;
+        redraw();
+      });
+
+      document.getElementById("pre-candles").addEventListener("input", (e) => {
+        state.preCandles = parseInt(e.target.value, 10) || 0;
+        document.getElementById("pre-candles-value").textContent =
+          String(state.preCandles);
+        redraw();
+      });
+
+      document.getElementById("post-candles").addEventListener("input", (e) => {
+        state.postCandles = parseInt(e.target.value, 10) || 0;
+        document.getElementById("post-candles-value").textContent =
+          String(state.postCandles);
+        redraw();
+      });
+
+      document.getElementById("wick-multiplier").addEventListener("input", (e) => {
+        state.wickMultiplier = parseFloat(e.target.value) || 1;
+        document.getElementById("wick-multiplier-value").textContent =
+          state.wickMultiplier.toFixed(1) + "×";
+        redraw();
+      });
+
+      document.getElementById("body-size").addEventListener("input", (e) => {
+        state.bodySizeFactor = parseFloat(e.target.value) || 0.25;
+        document.getElementById("body-size-value").textContent =
+          state.bodySizeFactor.toFixed(2);
+        redraw();
+      });
+
+      document.getElementById("variability").addEventListener("input", (e) => {
+        state.variability = parseFloat(e.target.value) || 0;
+        document.getElementById("variability-value").textContent =
+          (1 + state.variability).toFixed(2) + "×";
+        redraw();
+      });
+
+      document.getElementById("minimal-toggle").addEventListener("change", (e) => {
+        state.minimalMode = e.target.checked;
+        redraw();
+      });
+
+      document.getElementById("download-svg").addEventListener("click", downloadCurrentSvg);
+
+      document.getElementById("theme-toggle").addEventListener("click", () => {
+        const body = document.body;
+        const btn = document.getElementById("theme-toggle");
+        const isLight = body.classList.toggle("light-theme");
+        btn.querySelector("span:nth-child(1)").textContent = isLight
+          ? "🌞"
+          : "🌑";
+        btn.querySelector("span:nth-child(2)").textContent = isLight
+          ? "Light mode"
+          : "Dark mode";
+        redraw();
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      initControls();
+      redraw();
+    });
+  </script>
+</body>
+</html>
