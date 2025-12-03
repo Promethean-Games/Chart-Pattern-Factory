@@ -1,8 +1,8 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Chart Pattern Factory v0.4.2 — SVG Candles</title>
+  <title>Chart Pattern Factory v0.4.3 — SVG Candles</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     :root {
@@ -543,14 +543,14 @@
           </div>
           <label style="font-size:0.78rem; display:flex; align-items:center; gap:6px;">
             <input id="minimal-toggle" type="checkbox" />
-            Hide grid, axes &amp; background for mockups
+            Hide grid, axes, header &amp; footer for mockups
           </label>
         </div>
       </section>
     </main>
 
     <footer>
-      v0.4.2 — Candle bodies and wicks now always share the same color (no off-color outlines).
+      v0.4.3 — Exported SVG now includes pattern description header plus trend & legend footer (unless clean export is enabled).
     </footer>
   </div>
 
@@ -573,7 +573,6 @@
     function exaggerateCandlesSet(candles, exaggeration) {
       if (!candles || !candles.length || exaggeration <= 1.01) return candles;
 
-      // Baseline: average of midpoints
       let sumMid = 0;
       candles.forEach(c => {
         sumMid += (c.high + c.low) / 2;
@@ -584,9 +583,7 @@
 
       for (let i = 0; i < n; i++) {
         const c = candles[i];
-        // Position 0..1 across pattern
         const t = n > 1 ? i / (n - 1) : 0.5;
-        // Peak factor toward center, clipped so edges still move a bit
         const centerFactor = Math.max(0.3, 1 - Math.abs(t - 0.5) * 1.2);
         const localFactor = 1 + (exaggeration - 1) * centerFactor;
 
@@ -798,7 +795,7 @@
     function generateTrendCandles(count, direction, basePrice, exaggeration) {
       const candles = [];
       let price = basePrice;
-      const stepBase = 1.2 * (0.7 + 0.3 * exaggeration); // modestly responsive
+      const stepBase = 1.2 * (0.7 + 0.3 * exaggeration);
 
       for (let i = 0; i < count; i++) {
         const open = price;
@@ -1146,27 +1143,27 @@
           const A = 4 * exaggeration;
           prices = [
             basePrice + A * 0.25,
-            basePrice + A * 0.75,   // left shoulder
-            basePrice + A * 0.3,    // trough
-            basePrice + A * 1.25,   // head
-            basePrice + A * 0.35,   // trough
-            basePrice + A * 0.8,    // right shoulder
-            basePrice - A * 0.1,    // neckline break
+            basePrice + A * 0.75,
+            basePrice + A * 0.3,
+            basePrice + A * 1.25,
+            basePrice + A * 0.35,
+            basePrice + A * 0.8,
+            basePrice - A * 0.1,
           ];
           break;
         }
         case "cupAndHandle": {
           const A = 4 * exaggeration;
           prices = [
-            basePrice + A,          // left rim
+            basePrice + A,
             basePrice + A * 0.5,
             basePrice,
             basePrice,
             basePrice + A * 0.4,
-            basePrice + A * 0.9,    // right rim
-            basePrice + A * 0.7,    // handle drift
+            basePrice + A * 0.9,
+            basePrice + A * 0.7,
             basePrice + A * 0.8,
-            basePrice + A * 1.6,    // breakout
+            basePrice + A * 1.6,
           ];
           break;
         }
@@ -1176,11 +1173,11 @@
           const A = 6 * exaggeration;
           prices = [
             basePrice,
-            basePrice + A,            // pole
+            basePrice + A,
             basePrice + A * 0.86,
             basePrice + A * 0.9,
             basePrice + A * 0.82,
-            basePrice + A * 1.33,     // breakout
+            basePrice + A * 1.33,
           ];
           break;
         }
@@ -1345,7 +1342,7 @@
     }
 
     // ---------- RENDERING ----------
-    function renderSeries(candles, patternIndex, minimalMode) {
+    function renderSeries(candles, patternIndex, minimalMode, headerText, trendText) {
       const svg = document.getElementById("chart-svg");
       while (svg.firstChild) svg.removeChild(svg.firstChild);
 
@@ -1353,7 +1350,7 @@
       const height = 400;
       const margin = minimalMode
         ? { top: 70, right: 90, bottom: 70, left: 90 }
-        : { top: 40, right: 60, bottom: 50, left: 60 };
+        : { top: 70, right: 60, bottom: 70, left: 60 }; // extra room for header/footer
 
       const innerWidth = width - margin.left - margin.right;
       const innerHeight = height - margin.top - margin.bottom;
@@ -1382,7 +1379,7 @@
       }
 
       function xFor(index) {
-        const totalSlots = candles.length + 3; // extra padding
+        const totalSlots = candles.length + 3;
         const step = innerWidth / totalSlots;
         return margin.left + step * (index + 1.5);
       }
@@ -1409,6 +1406,18 @@
             fill: bgColor,
           })
         );
+
+        // header text (pattern description)
+        const header = createSvgElement("text", {
+          x: margin.left,
+          y: margin.top - 30,
+          "text-anchor": "start",
+          "font-size": 14,
+          "font-weight": "600",
+          fill: axisColor,
+        });
+        header.textContent = headerText || "";
+        svg.appendChild(header);
 
         // plot area
         svg.appendChild(
@@ -1467,6 +1476,54 @@
             "stroke-width": 1,
           })
         );
+
+        // footer: trend + legend
+        const footerY = height - 20;
+
+        const trendTxt = createSvgElement("text", {
+          x: margin.left,
+          y: footerY,
+          "text-anchor": "start",
+          "font-size": 11,
+          fill: axisColor,
+        });
+        trendTxt.textContent = trendText || "";
+        svg.appendChild(trendTxt);
+
+        const legendGroup = createSvgElement("g", {});
+        const legendBaseX = margin.left + innerWidth;
+        const gap = 60;
+        const sw = 12;
+        const sh = 6;
+
+        function addLegendItem(idx, label, color) {
+          const x = legendBaseX - (2 - idx) * gap;
+          const rect = createSvgElement("rect", {
+            x: x - sw - 4,
+            y: footerY - sh + 1,
+            width: sw,
+            height: sh,
+            rx: 999,
+            ry: 999,
+            fill: color,
+          });
+          legendGroup.appendChild(rect);
+          const txt = createSvgElement("text", {
+            x,
+            y: footerY,
+            "text-anchor": "start",
+            "font-size": 11,
+            fill: axisColor,
+          });
+          txt.textContent = label;
+          legendGroup.appendChild(txt);
+        }
+
+        addLegendItem(0, "Bullish", bullishColor);
+        addLegendItem(1, "Bearish", bearishColor);
+        addLegendItem(2, "Neutral/Doji", neutralColor);
+
+        svg.appendChild(legendGroup);
       }
 
       // draw candles
@@ -1485,7 +1542,6 @@
         const isBear = c.open > c.close + 0.01;
         const color = isBull ? bullishColor : isBear ? bearishColor : neutralColor;
 
-        // wick
         svg.appendChild(
           createSvgElement("line", {
             x1: x,
@@ -1498,7 +1554,6 @@
           })
         );
 
-        // body
         const bodyTop = Math.min(yOpen, yClose);
         const bodyHeight = Math.max(2, Math.abs(yClose - yOpen));
 
@@ -1509,7 +1564,7 @@
           height: bodyHeight,
           fill: color,
           "fill-opacity": 0.9,
-          stroke: color,          // <— body stroke matches wick/body color
+          stroke: color,
           "stroke-width": 0.5,
           rx: 2,
           ry: 2,
@@ -1517,8 +1572,6 @@
 
         svg.appendChild(createSvgElement("rect", rectAttrs));
       });
-
-      // No extra shapes/markers in any mode (clean candles only).
     }
 
     // ---------- STATE & WIRING ----------
@@ -1529,15 +1582,16 @@
       postCandles: 2,
       wickMultiplier: 1.5,
       bodySizeFactor: 0.25,
-      variability: 0.4, // 0..1.5 → exaggeration factor = 1 + variability
+      variability: 0.4,
       minimalMode: false,
     };
 
     function updateLabels() {
       const def = patternDefinitions[state.patternKey];
+      let headerText = "—";
       if (def) {
-        document.getElementById("pattern-label").textContent =
-          `${def.label} · ${def.description}`;
+        headerText = `${def.label} · ${def.description}`;
+        document.getElementById("pattern-label").textContent = headerText;
       } else {
         document.getElementById("pattern-label").textContent = "—";
       }
@@ -1549,8 +1603,10 @@
           ? "Downtrend"
           : "Sideways";
 
-      document.getElementById("trend-badge").textContent =
-        `Trend: ${trendLabel}`;
+      const trendText = `Trend: ${trendLabel}`;
+      document.getElementById("trend-badge").textContent = trendText;
+
+      return { headerText, trendText };
     }
 
     function redraw() {
@@ -1564,8 +1620,8 @@
         bodySizeFactor: state.bodySizeFactor,
         exaggeration,
       });
-      updateLabels();
-      renderSeries(candles, patternIndex, state.minimalMode);
+      const { headerText, trendText } = updateLabels();
+      renderSeries(candles, patternIndex, state.minimalMode, headerText, trendText);
     }
 
     function downloadCurrentSvg() {
